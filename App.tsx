@@ -17,6 +17,7 @@ import { Product, Service, Customer, Appointment, UserProfile, View, Budget, Pro
 import { INITIAL_PRODUCTS, INITIAL_SERVICES, INITIAL_CUSTOMERS, INITIAL_APPOINTMENTS, INITIAL_RESPONSIBLES, INITIAL_COLUMNS, INITIAL_USERS } from './data/mockData';
 
 import { SupabaseService } from './services/SupabaseService';
+import { supabase } from './services/supabaseClient';
 import { seedDatabase } from './services/seeder';
 import PWAInstallPrompt from './components/PWA/PWAInstallPrompt';
 
@@ -113,6 +114,24 @@ function App() {
     };
 
     loadData();
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        const currentUser = await SupabaseService.getCurrentUser();
+        if (currentUser) {
+          setUser(currentUser);
+          setIsAuthenticated(true);
+        }
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setIsAuthenticated(false);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -141,6 +160,18 @@ function App() {
       p.id === productId ? { ...p, stock: p.stock - quantity } : p
     ));
   };
+
+  // Show loading screen while checking authentication
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-400">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return <LoginScreen onLogin={handleLogin} />;
