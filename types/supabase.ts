@@ -272,6 +272,97 @@ export type Database = {
                 }
                 Relationships: []
             }
+            orders: {
+                Row: {
+                    id: string
+                    customer_id: string | null
+                    date: string
+                    status: string
+                    total_value: number
+                    discount_value: number | null
+                    discount_percent: number | null
+                    surcharge_value: number | null
+                    surcharge_percent: number | null
+                    notes: string | null
+                    created_at: string | null
+                }
+                Insert: {
+                    id?: string
+                    customer_id?: string | null
+                    date: string
+                    status: string
+                    total_value: number
+                    discount_value?: number | null
+                    discount_percent?: number | null
+                    surcharge_value?: number | null
+                    surcharge_percent?: number | null
+                    notes?: string | null
+                    created_at?: string | null
+                }
+                Update: {
+                    id?: string
+                    customer_id?: string | null
+                    date?: string
+                    status?: string
+                    total_value?: number
+                    discount_value?: number | null
+                    discount_percent?: number | null
+                    surcharge_value?: number | null
+                    surcharge_percent?: number | null
+                    notes?: string | null
+                    created_at?: string | null
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "orders_customer_id_fkey"
+                        columns: ["customer_id"]
+                        isOneToOne: false
+                        referencedRelation: "customers"
+                        referencedColumns: ["id"]
+                    }
+                ]
+            }
+            order_items: {
+                Row: {
+                    id: string
+                    order_id: string | null
+                    item_id: string | null
+                    name: string
+                    type: string
+                    quantity: number
+                    unit_price: number
+                    total: number
+                }
+                Insert: {
+                    id?: string
+                    order_id?: string | null
+                    item_id?: string | null
+                    name: string
+                    type?: string
+                    quantity?: number
+                    unit_price: number
+                    total: number
+                }
+                Update: {
+                    id?: string
+                    order_id?: string | null
+                    item_id?: string | null
+                    name?: string
+                    type?: string
+                    quantity?: number
+                    unit_price?: number
+                    total?: number
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "order_items_order_id_fkey"
+                        columns: ["order_id"]
+                        isOneToOne: false
+                        referencedRelation: "orders"
+                        referencedColumns: ["id"]
+                    }
+                ]
+            }
             documents: {
                 Row: {
                     created_at: string | null

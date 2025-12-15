@@ -252,9 +252,16 @@ export const SupabaseService = {
 
     // --- Customers ---
     async getCustomers(): Promise<Customer[]> {
-        const { data, error } = await supabase.from('customers').select('*');
+        // Carregar clientes com pedidos e itens de pedido usando nested select
+        const { data, error } = await supabase.from('customers').select(`
+            *,
+            orders:orders(
+                *,
+                items:order_items(*)
+            )
+        `);
         if (error) throw error;
-        // In a real app we would load orders too, but for list view we might skip or load separately
+
         return data.map(item => ({
             id: item.id,
             name: item.name,
@@ -264,7 +271,20 @@ export const SupabaseService = {
             document: item.document || undefined,
             address: item.address || undefined,
             createdAt: item.created_at || new Date().toISOString(),
-            orders: [] // Loaded separately if needed
+            orders: (item.orders || []).map((o: any) => ({
+                id: o.id,
+                date: o.date,
+                status: o.status as 'completed' | 'pending' | 'canceled',
+                items: (o.items || []).map((i: any) => ({
+                    itemId: i.item_id || '',
+                    name: i.name,
+                    type: i.type as 'product' | 'service',
+                    quantity: i.quantity,
+                    unitPrice: parseFloat(i.unit_price) || 0,
+                    total: parseFloat(i.total) || 0
+                })),
+                totalValue: parseFloat(o.total_value) || 0
+            }))
         }));
     },
 
@@ -309,7 +329,7 @@ export const SupabaseService = {
         return orders.map(o => ({
             id: o.id,
             date: o.date,
-            status: o.status as 'completed' | 'pending' | 'cancelled',
+            status: o.status as 'completed' | 'pending' | 'canceled',
             items: o.items.map((i: any) => ({
                 itemId: i.item_id || '',
                 name: i.name,
