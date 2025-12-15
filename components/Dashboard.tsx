@@ -523,7 +523,7 @@ const Dashboard: React.FC<DashboardProps> = ({ products, services, customers, ap
               <TrendingDown className="w-5 h-5 text-red-500" />
             </div>
           </div>
-          <div className="h-80 w-full">
+          <div className="h-64 sm:h-80 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -534,9 +534,9 @@ const Dashboard: React.FC<DashboardProps> = ({ products, services, customers, ap
                     return acc;
                   }, []).sort((a, b) => b.value - a.value)}
                   cx="50%"
-                  cy="50%"
-                  innerRadius={80}
-                  outerRadius={110}
+                  cy="45%"
+                  innerRadius={50}
+                  outerRadius={75}
                   paddingAngle={5}
                   dataKey="value"
                 >
@@ -554,7 +554,7 @@ const Dashboard: React.FC<DashboardProps> = ({ products, services, customers, ap
                   contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#f3f4f6' }}
                   itemStyle={{ color: '#f3f4f6' }}
                 />
-                <Legend verticalAlign="middle" align="right" layout="vertical" iconType="circle" />
+                <Legend verticalAlign="bottom" align="center" layout="horizontal" iconType="circle" wrapperStyle={{ fontSize: '11px', paddingTop: '10px' }} />
               </PieChart>
             </ResponsiveContainer>
           </div>
