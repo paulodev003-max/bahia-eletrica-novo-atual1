@@ -18,7 +18,6 @@ import { INITIAL_PRODUCTS, INITIAL_SERVICES, INITIAL_CUSTOMERS, INITIAL_APPOINTM
 
 import { SupabaseService } from './services/SupabaseService';
 import { supabase } from './services/supabaseClient';
-import { seedDatabase } from './services/seeder';
 import PWAInstallPrompt from './components/PWA/PWAInstallPrompt';
 
 function App() {
@@ -63,13 +62,6 @@ function App() {
           setIsAuthenticated(true);
         }
 
-        // Try to seed (non-blocking error)
-        try {
-          await seedDatabase();
-        } catch (seedError) {
-          console.warn('Seed failed (non-critical):', seedError);
-        }
-
         // Fetch all data in parallel with individual error handling
         const results = await Promise.allSettled([
           SupabaseService.getProducts(),
@@ -106,9 +98,9 @@ function App() {
 
       } catch (error) {
         console.error("Failed to load data:", error);
-      } finally {
-        setIsLoading(false);
       }
+      // Always set loading to false
+      setIsLoading(false);
     };
 
     loadData();
