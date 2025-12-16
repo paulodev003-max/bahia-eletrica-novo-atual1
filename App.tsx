@@ -55,30 +55,23 @@ function App() {
   // Initial Data Load
   useEffect(() => {
     const loadData = async () => {
-      setIsLoading(true);
       try {
-        // Seed if empty (First run)
-        await seedDatabase();
-
-        // Check for existing session
+        // Check for existing session first
         const currentUser = await SupabaseService.getCurrentUser();
         if (currentUser) {
           setUser(currentUser);
           setIsAuthenticated(true);
         }
 
-        // Fetch all data in parallel
-        const [
-          fetchedProducts,
-          fetchedServices,
-          fetchedCustomers,
-          fetchedUsers,
-          fetchedBudgets,
-          fetchedExpenses,
-          fetchedAppointments,
-          fetchedProjects,
-          fetchedColumns
-        ] = await Promise.all([
+        // Try to seed (non-blocking error)
+        try {
+          await seedDatabase();
+        } catch (seedError) {
+          console.warn('Seed failed (non-critical):', seedError);
+        }
+
+        // Fetch all data in parallel with individual error handling
+        const results = await Promise.allSettled([
           SupabaseService.getProducts(),
           SupabaseService.getServices(),
           SupabaseService.getCustomers(),
@@ -90,15 +83,21 @@ function App() {
           SupabaseService.getKanbanColumns()
         ]);
 
-        setProducts(fetchedProducts);
-        setServices(fetchedServices);
-        setCustomers(fetchedCustomers);
-        setUsers(fetchedUsers);
-        setBudgets(fetchedBudgets);
-        setExpenses(fetchedExpenses);
-        setAppointments(fetchedAppointments);
-        setProjects(fetchedProjects);
-        // Use fetched columns if available, otherwise use defaults
+        // Extract results, using empty arrays for failed requests
+        const extractResult = <T,>(result: PromiseSettledResult<T[]>, fallback: T[] = []): T[] => {
+          return result.status === 'fulfilled' ? result.value : fallback;
+        };
+
+        setProducts(extractResult(results[0] as PromiseSettledResult<any[]>));
+        setServices(extractResult(results[1] as PromiseSettledResult<any[]>));
+        setCustomers(extractResult(results[2] as PromiseSettledResult<any[]>));
+        setUsers(extractResult(results[3] as PromiseSettledResult<any[]>));
+        setBudgets(extractResult(results[4] as PromiseSettledResult<any[]>));
+        setExpenses(extractResult(results[5] as PromiseSettledResult<any[]>));
+        setAppointments(extractResult(results[6] as PromiseSettledResult<any[]>));
+        setProjects(extractResult(results[7] as PromiseSettledResult<any[]>));
+
+        const fetchedColumns = extractResult(results[8] as PromiseSettledResult<any[]>);
         if (fetchedColumns.length > 0) {
           setColumns(fetchedColumns);
         } else {
@@ -107,7 +106,6 @@ function App() {
 
       } catch (error) {
         console.error("Failed to load data:", error);
-        alert("Erro ao carregar dados do banco de dados.");
       } finally {
         setIsLoading(false);
       }
