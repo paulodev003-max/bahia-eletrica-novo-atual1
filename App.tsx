@@ -17,7 +17,6 @@ import { Product, Service, Customer, Appointment, UserProfile, View, Budget, Pro
 import { INITIAL_PRODUCTS, INITIAL_SERVICES, INITIAL_CUSTOMERS, INITIAL_APPOINTMENTS, INITIAL_RESPONSIBLES, INITIAL_COLUMNS, INITIAL_USERS } from './data/mockData';
 
 import { SupabaseService } from './services/SupabaseService';
-import { supabase } from './services/supabaseClient';
 import PWAInstallPrompt from './components/PWA/PWAInstallPrompt';
 
 function App() {
@@ -53,17 +52,28 @@ function App() {
 
   // Initial Data Load
   useEffect(() => {
+    let isMounted = true;
+
     const loadData = async () => {
       try {
-        // Check for existing session first
-        const currentUser = await SupabaseService.getCurrentUser();
-        if (currentUser) {
-          setUser(currentUser);
-          setIsAuthenticated(true);
+        // Check for existing session first with timeout
+        const sessionPromise = SupabaseService.getCurrentUser();
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Session check timeout')), 5000)
+        );
+
+        try {
+          const currentUser = await Promise.race([sessionPromise, timeoutPromise]) as any;
+          if (isMounted && currentUser) {
+            setUser(currentUser);
+            setIsAuthenticated(true);
+          }
+        } catch (sessionError) {
+          console.warn('Session check failed or timed out:', sessionError);
         }
 
-        // Fetch all data in parallel with individual error handling
-        const results = await Promise.allSettled([
+        // Fetch all data in parallel with timeout
+        const dataPromise = Promise.allSettled([
           SupabaseService.getProducts(),
           SupabaseService.getServices(),
           SupabaseService.getCustomers(),
@@ -75,52 +85,49 @@ function App() {
           SupabaseService.getKanbanColumns()
         ]);
 
-        // Extract results, using empty arrays for failed requests
-        const extractResult = <T,>(result: PromiseSettledResult<T[]>, fallback: T[] = []): T[] => {
-          return result.status === 'fulfilled' ? result.value : fallback;
-        };
+        const dataTimeout = new Promise<PromiseSettledResult<any[]>[]>((resolve) =>
+          setTimeout(() => resolve([]), 10000)
+        );
 
-        setProducts(extractResult(results[0] as PromiseSettledResult<any[]>));
-        setServices(extractResult(results[1] as PromiseSettledResult<any[]>));
-        setCustomers(extractResult(results[2] as PromiseSettledResult<any[]>));
-        setUsers(extractResult(results[3] as PromiseSettledResult<any[]>));
-        setBudgets(extractResult(results[4] as PromiseSettledResult<any[]>));
-        setExpenses(extractResult(results[5] as PromiseSettledResult<any[]>));
-        setAppointments(extractResult(results[6] as PromiseSettledResult<any[]>));
-        setProjects(extractResult(results[7] as PromiseSettledResult<any[]>));
+        const results = await Promise.race([dataPromise, dataTimeout]);
 
-        const fetchedColumns = extractResult(results[8] as PromiseSettledResult<any[]>);
-        if (fetchedColumns.length > 0) {
-          setColumns(fetchedColumns);
-        } else {
-          setColumns(INITIAL_COLUMNS);
+        if (isMounted && results.length > 0) {
+          // Extract results, using empty arrays for failed requests
+          const extractResult = <T,>(result: PromiseSettledResult<T[]>, fallback: T[] = []): T[] => {
+            return result?.status === 'fulfilled' ? result.value : fallback;
+          };
+
+          setProducts(extractResult(results[0] as PromiseSettledResult<any[]>));
+          setServices(extractResult(results[1] as PromiseSettledResult<any[]>));
+          setCustomers(extractResult(results[2] as PromiseSettledResult<any[]>));
+          setUsers(extractResult(results[3] as PromiseSettledResult<any[]>));
+          setBudgets(extractResult(results[4] as PromiseSettledResult<any[]>));
+          setExpenses(extractResult(results[5] as PromiseSettledResult<any[]>));
+          setAppointments(extractResult(results[6] as PromiseSettledResult<any[]>));
+          setProjects(extractResult(results[7] as PromiseSettledResult<any[]>));
+
+          const fetchedColumns = extractResult(results[8] as PromiseSettledResult<any[]>);
+          if (fetchedColumns.length > 0) {
+            setColumns(fetchedColumns);
+          } else {
+            setColumns(INITIAL_COLUMNS);
+          }
         }
 
       } catch (error) {
         console.error("Failed to load data:", error);
       }
+
       // Always set loading to false
-      setIsLoading(false);
+      if (isMounted) {
+        setIsLoading(false);
+      }
     };
 
     loadData();
 
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        const currentUser = await SupabaseService.getCurrentUser();
-        if (currentUser) {
-          setUser(currentUser);
-          setIsAuthenticated(true);
-        }
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null);
-        setIsAuthenticated(false);
-      }
-    });
-
     return () => {
-      subscription.unsubscribe();
+      isMounted = false;
     };
   }, []);
 
